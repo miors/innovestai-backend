@@ -4,10 +4,23 @@ const { OpenAI } = require("openai");
 const requireAuth = require("../middleware/auth");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const crypto = require("crypto");
 
-router.post("/analyze", requireAuth, async (req, res, next) => {
+const cache = new Map();
+
+const getCached = (key) => {
+  const hit = cache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.data;
+  cache.delete(key);
+  return null;
+};
+
+const setCached = (key, data, ttlMs) => {
+  cache.set(key, { data, expires: Date.now() + ttlMs });
+};
+
+router.post("/analyze", async (req, res, next) => {
   const { portfolioContext } = req.body;
-  console.log(portfolioContext);
 
   try {
     if (!portfolioContext || portfolioContext.length === 0) {
@@ -23,6 +36,9 @@ router.post("/analyze", requireAuth, async (req, res, next) => {
       )
       .join("\n");
 
+    const key = `ai:${req.user.id}:${crypto.createHash("sha256").update(promptSummary).digest("hex")}`;
+    const hit = getCached(key);
+    if (hit) return res.json({ analysis: hit });
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini", // Cost-effective, high-speed execution target
       messages: [
@@ -39,7 +55,9 @@ router.post("/analyze", requireAuth, async (req, res, next) => {
       temperature: 0.7,
     });
 
-    res.json({ analysis: completion.choices[0].message.content });
+    const analysis = completion.choices[0].message.content;
+    setCached(key, analysis, 30 * 60 * 1000);
+    res.json({ analysis });
   } catch (err) {
     console.error("AI Generation Failure:", err.message);
     // res.status(500).json({ error: "Failed to generate structural portfolio insights." });
