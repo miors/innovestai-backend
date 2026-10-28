@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { OpenAI } = require("openai");
 const requireAuth = require("../middleware/auth");
+const { getNews } = require("../services/news");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const crypto = require("crypto");
@@ -29,12 +30,26 @@ router.post("/analyze", async (req, res, next) => {
         .json({ error: "Cannot process analysis for an empty portfolio map." });
     }
 
-    const promptSummary = portfolioContext
-      .map(
-        (item) =>
-          `- Asset: ${item.symbol}, Strategy Note: "${item.notes_content || "None entered"}"`,
-      )
-      .join("\n");
+    // Fetch headlines server-side; a failed lookup must not break the analysis
+    const lines = await Promise.all(
+      portfolioContext.slice(0, 8).map(async (item) => {
+        let headlines = "None available";
+        try {
+          const news = await getNews(item.symbol, item.asset_type, 3);
+          if (news.length) {
+            headlines = news
+              .map(
+                (n) => `"${n.title}"${n.sentiment ? ` (${n.sentiment})` : ""}`,
+              )
+              .join("; ");
+          }
+        } catch {
+          // fall through with "None available"
+        }
+        return `- Asset: ${item.symbol}, Strategy Note: "${item.notes_content || "None entered"}", Recent headlines: ${headlines}`;
+      }),
+    );
+    const promptSummary = lines.join("\n");
 
     const key = `ai:${req.user.id}:${crypto.createHash("sha256").update(promptSummary).digest("hex")}`;
     const hit = getCached(key);
@@ -45,7 +60,8 @@ router.post("/analyze", async (req, res, next) => {
         {
           role: "system",
           content:
-            "You are an institutional financial portfolio risk analyst. Review the user's asset lists and custom operational strategies. Provide 3 short, high-impact bullet points identifying systemic market macro-risks or diversification changes based on their strategy. Keep formatting tight using bold markdown tags.",
+            // "You are an institutional financial portfolio risk analyst. Review the user's asset lists and custom operational strategies. Provide 3 short, high-impact bullet points identifying systemic market macro-risks or diversification changes based on their strategy. Keep formatting tight using bold markdown tags.",
+            "You are an institutional financial portfolio risk analyst. Review the user's asset lists, custom strategies, and recent news headlines. Provide 3 short, high-impact bullet points identifying systemic market macro-risks or diversification changes. Reference specific headlines where relevant, and don't invent news that isn't listed. Keep formatting tight using bold markdown tags.",
         },
         {
           role: "user",

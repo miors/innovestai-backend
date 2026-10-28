@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const axios = require("axios");
+const { getNews } = require("../services/news");
 
 const cache = new Map();
 
@@ -85,6 +86,15 @@ router.get("/price/:symbol", async (req, res) => {
     };
     if (data.price !== null) setCached(key, data, 10 * 60 * 1000);
     res.json(data);
+  } catch (err) {
+    sendPolygonError(err, res);
+  }
+});
+
+router.get("/news/:symbol", async (req, res) => {
+  try {
+    const news = await getNews(req.params.symbol, req.query.type);
+    res.json({ results: news });
   } catch (err) {
     sendPolygonError(err, res);
   }
