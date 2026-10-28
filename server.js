@@ -7,7 +7,7 @@ const requireAuth = require("./middleware/auth");
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 3000;
 
 //middleware configuration
 app.use(cors());

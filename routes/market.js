@@ -77,7 +77,12 @@ router.get("/price/:symbol", async (req, res) => {
     const response = await axios.get(
       `https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${process.env.POLYGON_API_KEY}`,
     );
-    const data = { price: response.data.results?.[0]?.c ?? null };
+    const bar = response.data.results?.[0];
+    const data = {
+      price: bar?.c ?? null,
+      change: bar ? bar.c - bar.o : null,
+      changePct: bar && bar.o ? ((bar.c - bar.o) / bar.o) * 100 : null,
+    };
     if (data.price !== null) setCached(key, data, 10 * 60 * 1000);
     res.json(data);
   } catch (err) {
