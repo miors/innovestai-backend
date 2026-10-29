@@ -108,6 +108,12 @@ router.put("/notes", requireAuth, async (req, res, next) => {
 router.delete("/:id", requireAuth, async (req, res, next) => {
   const { id } = req.params;
   const user_id = req.user.id;
+
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  ) {
+    return res.status(400).json({ error: "id must be a valid UUID." });
+  }
   try {
     const queryText = `DELETE FROM public.capstone_watchlists WHERE id = $1 AND user_id = $2 RETURNING *;`;
     const result = await db.query(queryText, [id, user_id]);
