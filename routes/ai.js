@@ -57,27 +57,18 @@ router.post("/analyze", async (req, res, next) => {
   }
 
   try {
-    // Fetch headlines server-side; a failed lookup must not break the analysis
+    if (!portfolioContext || portfolioContext.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Cannot process analysis for an empty portfolio map." });
+    }
 
-    const lines = await Promise.all(
-      portfolioContext.slice(0, 8).map(async (item) => {
-        let headlines = "None available";
-        try {
-          const news = await getNews(item.symbol, item.asset_type, 3);
-          if (news.length) {
-            headlines = news
-              .map(
-                (n) => `"${n.title}"${n.sentiment ? ` (${n.sentiment})` : ""}`,
-              )
-              .join("; ");
-          }
-        } catch {
-          // fall through with "None available"
-        }
-        return `- Asset: ${item.symbol}, Strategy Note: "${item.notes_content || "None entered"}", Recent headlines: ${headlines}`;
-      }),
-    );
-    const promptSummary = lines.join("\n");
+    const promptSummary = portfolioContext
+      .map(
+        (item) =>
+          `- Asset: ${item.symbol}, Strategy Note: "${item.notes_content || "None entered"}"`,
+      )
+      .join("\n");
 
     const key = `ai:${req.user.id}:${crypto.createHash("sha256").update(promptSummary).digest("hex")}`;
     const hit = getCached(key);
@@ -103,7 +94,9 @@ router.post("/analyze", async (req, res, next) => {
     res.json({ analysis });
   } catch (err) {
     console.error("AI Generation Failure:", err.message);
-    // res.status(500).json({ error: "Failed to generate structural portfolio insights." });
+    res
+      .status(500)
+      .json({ error: "Failed to generate structural portfolio insights." });
     next(err);
   }
 });
