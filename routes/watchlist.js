@@ -62,6 +62,23 @@ router.post("/", requireAuth, async (req, res, next) => {
 router.put("/notes", requireAuth, async (req, res, next) => {
   const { watchlist_id, notes_content } = req.body;
   const user_id = req.user.id;
+
+  if (
+    watchlist_id === undefined ||
+    watchlist_id === null ||
+    !["string", "number"].includes(typeof watchlist_id) ||
+    String(watchlist_id).trim() === ""
+  ) {
+    return res.status(400).json({ error: "watchlist_id is required." });
+  }
+  if (typeof notes_content !== "string") {
+    return res.status(400).json({ error: "notes_content must be a string." });
+  }
+  if (notes_content.length > 5000) {
+    return res
+      .status(400)
+      .json({ error: "notes_content must be 5000 characters or fewer." });
+  }
   try {
     const queryText = `
       INSERT INTO public.capstone_asset_notes (watchlist_id, notes_content, updated_at)
@@ -107,9 +124,33 @@ router.delete("/:id", requireAuth, async (req, res, next) => {
 });
 
 //5.UPDATE: set quantity and buy price for a holding
+// quantity and buy_price: each must be a finite number that is zero or greater, or null
 router.put("/holding", requireAuth, async (req, res, next) => {
   const { watchlist_id, quantity, buy_price } = req.body;
   const user_id = req.user.id;
+
+  if (
+    watchlist_id === undefined ||
+    watchlist_id === null ||
+    !["string", "number"].includes(typeof watchlist_id) ||
+    String(watchlist_id).trim() === ""
+  ) {
+    return res.status(400).json({ error: "watchlist_id is required." });
+  }
+  // null is allowed so a holding can be cleared
+  for (const [name, value] of [
+    ["quantity", quantity],
+    ["buy_price", buy_price],
+  ]) {
+    if (
+      value !== null &&
+      (typeof value !== "number" || !Number.isFinite(value) || value < 0)
+    ) {
+      return res
+        .status(400)
+        .json({ error: `${name} must be a non-negative number or null.` });
+    }
+  }
   try {
     const result = await db.query(
       `UPDATE public.capstone_watchlists

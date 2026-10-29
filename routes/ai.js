@@ -21,19 +21,63 @@ const setCached = (key, data, ttlMs) => {
 router.post("/analyze", async (req, res, next) => {
   const { portfolioContext } = req.body;
 
-  try {
-    if (!portfolioContext || portfolioContext.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "Cannot process analysis for an empty portfolio map." });
+  if (!Array.isArray(portfolioContext) || portfolioContext.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "Cannot process analysis for an empty portfolio map." });
+  }
+  if (portfolioContext.length > 50) {
+    return res
+      .status(400)
+      .json({ error: "portfolioContext cannot exceed 50 items." });
+  }
+  for (const item of portfolioContext) {
+    if (
+      !item ||
+      typeof item !== "object" ||
+      typeof item.symbol !== "string" ||
+      !item.symbol.trim() ||
+      item.symbol.length > 20 ||
+      !["stock", "crypto"].includes(item.asset_type)
+    ) {
+      return res.status(400).json({
+        error:
+          "Each item needs a symbol (max 20 chars) and asset_type of stock or crypto.",
+      });
     }
+    if (
+      item.notes_content != null &&
+      (typeof item.notes_content !== "string" ||
+        item.notes_content.length > 5000)
+    ) {
+      return res.status(400).json({
+        error: "notes_content must be a string of 5000 characters or fewer.",
+      });
+    }
+  }
 
-    const promptSummary = portfolioContext
-      .map(
-        (item) =>
-          `- Asset: ${item.symbol}, Strategy Note: "${item.notes_content || "None entered"}"`,
-      )
-      .join("\n");
+  try {
+    // Fetch headlines server-side; a failed lookup must not break the analysis
+
+    const lines = await Promise.all(
+      portfolioContext.slice(0, 8).map(async (item) => {
+        let headlines = "None available";
+        try {
+          const news = await getNews(item.symbol, item.asset_type, 3);
+          if (news.length) {
+            headlines = news
+              .map(
+                (n) => `"${n.title}"${n.sentiment ? ` (${n.sentiment})` : ""}`,
+              )
+              .join("; ");
+          }
+        } catch {
+          // fall through with "None available"
+        }
+        return `- Asset: ${item.symbol}, Strategy Note: "${item.notes_content || "None entered"}", Recent headlines: ${headlines}`;
+      }),
+    );
+    const promptSummary = lines.join("\n");
 
     const key = `ai:${req.user.id}:${crypto.createHash("sha256").update(promptSummary).digest("hex")}`;
     const hit = getCached(key);
