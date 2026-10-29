@@ -9,7 +9,7 @@ module.exports = [
     languageOptions: {
       sourceType: "commonjs",
       ecmaVersion: "latest",
-      globals: globals.node,
+      globals: { ...globals.node, ...globals.jest },
     },
     rules: {
       "no-unused-vars": ["error", { argsIgnorePattern: "^_|next" }],
