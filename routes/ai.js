@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const { OpenAI } = require("openai");
-const requireAuth = require("../middleware/auth");
 const { getNews } = require("../services/news");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
