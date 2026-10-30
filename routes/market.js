@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const axios = require("axios");
+const { getNews } = require("../services/news");
 
 const cache = new Map();
 
@@ -77,9 +78,23 @@ router.get("/price/:symbol", async (req, res) => {
     const response = await axios.get(
       `https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${process.env.POLYGON_API_KEY}`,
     );
-    const data = { price: response.data.results?.[0]?.c ?? null };
+    const bar = response.data.results?.[0];
+    const data = {
+      price: bar?.c ?? null,
+      change: bar ? bar.c - bar.o : null,
+      changePct: bar && bar.o ? ((bar.c - bar.o) / bar.o) * 100 : null,
+    };
     if (data.price !== null) setCached(key, data, 10 * 60 * 1000);
     res.json(data);
+  } catch (err) {
+    sendPolygonError(err, res);
+  }
+});
+
+router.get("/news/:symbol", async (req, res) => {
+  try {
+    const news = await getNews(req.params.symbol, req.query.type);
+    res.json({ results: news });
   } catch (err) {
     sendPolygonError(err, res);
   }
