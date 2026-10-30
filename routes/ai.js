@@ -23,6 +23,41 @@ const setCached = (key, data, ttlMs) => {
 router.post("/analyze", async (req, res, next) => {
   const { portfolioContext } = req.body;
 
+  if (!Array.isArray(portfolioContext) || portfolioContext.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "Cannot process analysis for an empty portfolio map." });
+  }
+  if (portfolioContext.length > 50) {
+    return res
+      .status(400)
+      .json({ error: "portfolioContext cannot exceed 50 items." });
+  }
+  for (const item of portfolioContext) {
+    if (
+      !item ||
+      typeof item !== "object" ||
+      typeof item.symbol !== "string" ||
+      !item.symbol.trim() ||
+      item.symbol.length > 20 ||
+      !["stock", "crypto"].includes(item.asset_type)
+    ) {
+      return res.status(400).json({
+        error:
+          "Each item needs a symbol (max 20 chars) and asset_type of stock or crypto.",
+      });
+    }
+    if (
+      item.notes_content != null &&
+      (typeof item.notes_content !== "string" ||
+        item.notes_content.length > 5000)
+    ) {
+      return res.status(400).json({
+        error: "notes_content must be a string of 5000 characters or fewer.",
+      });
+    }
+  }
+
   try {
     if (!portfolioContext || portfolioContext.length === 0) {
       return res
@@ -76,7 +111,9 @@ router.post("/analyze", async (req, res, next) => {
     res.json({ analysis });
   } catch (err) {
     console.error("AI Generation Failure:", err.message);
-    // res.status(500).json({ error: "Failed to generate structural portfolio insights." });
+    res
+      .status(500)
+      .json({ error: "Failed to generate structural portfolio insights." });
     next(err);
   }
 });

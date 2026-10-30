@@ -15,8 +15,8 @@ app.use(express.json()); //parse incoming JSON requests
 
 //mount modular endpoint routes
 app.use("/api/market", requireAuth, require("./routes/market"));
-app.use("/api/watchlist", require("./routes/watchlist")); // safe to uncomment now!
-app.use("/api/ai", requireAuth, require("./routes/ai")); // 💥 If this still crashes, check the exports inside ai.js!
+app.use("/api/watchlist", require("./routes/watchlist"));
+app.use("/api/ai", requireAuth, require("./routes/ai"));
 
 //global error handling middleware
 app.use((err, req, res, next) => {
@@ -24,6 +24,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal Server Error" });
 });
 
-app.listen(port, () => {
-  console.log(`🚀 InnovestAI API running smoothly on port ${port}`);
-});
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`🚀 InnovestAI API running smoothly on port ${port}`);
+  });
+}
+
+module.exports = app;
