@@ -1,7 +1,7 @@
 const axios = require("axios");
 
 const cache = new Map();
-const TTL_MS = 15 * 60 * 1000;
+const TTL_MS = 60 * 60 * 1000;
 
 const getNews = async (symbol, type, limit = 5) => {
   const ticker =
