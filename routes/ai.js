@@ -95,7 +95,7 @@ router.post("/analyze", async (req, res, next) => {
           role: "system",
           content:
             // "You are an institutional financial portfolio risk analyst. Review the user's asset lists and custom operational strategies. Provide 3 short, high-impact bullet points identifying systemic market macro-risks or diversification changes based on their strategy. Keep formatting tight using bold markdown tags.",
-            "You are an institutional financial portfolio risk analyst. Review the user's asset lists, custom strategies, and recent news headlines. Provide 3 short, high-impact bullet points identifying systemic market macro-risks or diversification changes. Reference specific headlines where relevant, and don't invent news that isn't listed. Keep formatting tight using bold markdown tags.",
+            "You are an institutional financial portfolio risk analyst. Review the user's asset lists, custom strategies, and recent news headlines. Provide 3 short, high-impact bullet points identifying systemic market macro-risks or diversification changes. Reference specific headlines where relevant, and don't invent news that isn't listed. Keep formatting tight using bold markdown tags. No need to include crypto news or headlines in the analysis.",
         },
         {
           role: "user",
