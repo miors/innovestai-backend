@@ -93,7 +93,8 @@ router.get("/price/:symbol", async (req, res) => {
 
 router.get("/news/:symbol", async (req, res) => {
   try {
-    const news = await getNews(req.params.symbol, req.query.type);
+    const limit = Math.min(Number(req.query.limit) || 5, 10);
+    const news = await getNews(req.params.symbol, req.query.type, limit);
     res.json({ results: news });
   } catch (err) {
     sendPolygonError(err, res);
