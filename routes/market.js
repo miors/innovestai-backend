@@ -101,4 +101,42 @@ router.get("/news/:symbol", async (req, res) => {
   }
 });
 
+router.get("/search", async (req, res) => {
+  const q = String(req.query.q ?? "").trim();
+  const market = req.query.type === "crypto" ? "crypto" : "stocks";
+  if (q.length < 1 || q.length > 30) return res.json({ results: [] });
+
+  const key = `search:${market}:${q.toLowerCase()}`;
+  const cached = getCached(key);
+  if (cached) return res.json(cached);
+
+  try {
+    const response = await axios.get(
+      "https://api.polygon.io/v3/reference/tickers",
+      {
+        params: {
+          search: q,
+          market,
+          active: true,
+          limit: 8,
+          apiKey: process.env.POLYGON_API_KEY,
+        },
+      },
+    );
+    const data = {
+      results: (response.data.results ?? []).map((t) => ({
+        symbol:
+          market === "crypto"
+            ? t.ticker.replace(/^X:/, "").replace(/USD$/, "")
+            : t.ticker,
+        name: t.name,
+      })),
+    };
+    setCached(key, data, 60 * 60 * 1000);
+    res.json(data);
+  } catch (err) {
+    sendPolygonError(err, res);
+  }
+});
+
 module.exports = router;

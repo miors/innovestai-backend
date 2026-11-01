@@ -55,6 +55,17 @@ router.post("/analyze", async (req, res, next) => {
         error: "notes_content must be a string of 5000 characters or fewer.",
       });
     }
+    for (const field of ["quantity", "buy_price"]) {
+      let v = item[field];
+      if (
+        v != null &&
+        (typeof v !== "number" || !Number.isFinite(v) || v < 0)
+      ) {
+        return res
+          .status(400)
+          .json({ error: `${field} must be a non-negative number.` });
+      }
+    }
   }
 
   try {
@@ -80,7 +91,11 @@ router.post("/analyze", async (req, res, next) => {
         } catch {
           // fall through with "None available"
         }
-        return `- Asset: ${item.symbol}, Strategy Note: "${item.notes_content || "None entered"}", Recent headlines: ${headlines}`;
+        const hasHolding = item.quantity != null && item.buy_price != null;
+        const holding = hasHolding
+          ? `, Holding: ${item.quantity} units bought at $${item.buy_price} (cost basis $${(item.quantity * item.buy_price).toFixed(2)})`
+          : ", Holding: not specified";
+        return `- Asset: ${item.symbol}${holding}, Strategy Note: "${item.notes_content || "None entered"}", Recent headlines: ${headlines}`;
       }),
     );
     const promptSummary = lines.join("\n");
@@ -95,7 +110,7 @@ router.post("/analyze", async (req, res, next) => {
           role: "system",
           content:
             // "You are an institutional financial portfolio risk analyst. Review the user's asset lists and custom operational strategies. Provide 3 short, high-impact bullet points identifying systemic market macro-risks or diversification changes based on their strategy. Keep formatting tight using bold markdown tags.",
-            "You are an institutional financial portfolio risk analyst. Review the user's asset lists, custom strategies, and recent news headlines. Provide 3 short, high-impact bullet points identifying systemic market macro-risks or diversification changes. Reference specific headlines where relevant, and don't invent news that isn't listed. Keep formatting tight using bold markdown tags. No need to include crypto news or headlines in the analysis.",
+            "You are an institutional financial portfolio risk analyst. Review the user's asset lists, custom strategies, and recent news headlines. Provide 3 short, high-impact bullet points identifying systemic market macro-risks or diversification changes. Reference specific headlines where relevant, and don't invent news that isn't listed. Keep formatting tight using bold markdown tags. No need to include crypto news or headlines in the analysis. When holdings are given, weigh position size and cost basis (concentration, unrealised exposure) in your assessment. Don't assume current prices beyond what's provided.",
         },
         {
           role: "user",
