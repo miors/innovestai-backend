@@ -79,18 +79,23 @@ router.post("/analyze", async (req, res, next) => {
     const lines = await Promise.all(
       portfolioContext.slice(0, 8).map(async (item) => {
         let headlines = "None available";
-        try {
-          const news = await getNews(item.symbol, item.asset_type, 3);
-          if (news.length) {
-            headlines = news
-              .map(
-                (n) => `"${n.title}"${n.sentiment ? ` (${n.sentiment})` : ""}`,
-              )
-              .join("; ");
+
+        if (item.asset_type === "stock") {
+          try {
+            const news = await getNews(item.symbol, item.asset_type, 3);
+            if (news.length) {
+              headlines = news
+                .map(
+                  (n) =>
+                    `"${n.title}"${n.sentiment ? ` (${n.sentiment})` : ""}`,
+                )
+                .join("; ");
+            }
+          } catch {
+            // fall through with "None available"
           }
-        } catch {
-          // fall through with "None available"
         }
+
         const hasHolding = item.quantity != null && item.buy_price != null;
         const holding = hasHolding
           ? `, Holding: ${item.quantity} units bought at $${item.buy_price} (cost basis $${(item.quantity * item.buy_price).toFixed(2)})`
@@ -128,7 +133,6 @@ router.post("/analyze", async (req, res, next) => {
     res
       .status(500)
       .json({ error: "Failed to generate structural portfolio insights." });
-    next(err);
   }
 });
 
