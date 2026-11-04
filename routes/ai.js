@@ -128,7 +128,6 @@ router.post("/analyze", async (req, res, next) => {
     res
       .status(500)
       .json({ error: "Failed to generate structural portfolio insights." });
-    next(err);
   }
 });
 
